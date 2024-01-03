@@ -4,24 +4,34 @@ use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use std::collections::HashSet;
 
+use crate::{player::PlayerBundle, GameState};
+
+pub struct TilemapPlugin;
+
+impl Plugin for TilemapPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(GameState::Playing), setup)
+            .insert_resource(LevelSelection::index(0))
+            .register_ldtk_entity::<PlayerBundle>("Player")
+            .register_ldtk_entity::<GoalBundle>("Goal")
+            .add_systems(
+                Update,
+                translate_grid_coords_entities.run_if(in_state(GameState::Playing)),
+            )
+            .add_systems(
+                Update,
+                cache_wall_locations.run_if(in_state(GameState::Playing)),
+            )
+            .register_ldtk_int_cell::<WallBundle>(1)
+            .init_resource::<LevelWalls>();
+    }
+}
 
 pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(LdtkWorldBundle {
         ldtk_handle: asset_server.load("tile-based-game.ldtk"),
         ..Default::default()
     });
-}
-
-#[derive(Default, Component)]
-pub struct Player;
-
-#[derive(Default, Bundle, LdtkEntity)]
-pub struct PlayerBundle {
-    player: Player,
-    #[sprite_sheet_bundle]
-    sprite_bundle: SpriteSheetBundle,
-    #[grid_coords]
-    grid_coords: GridCoords,
 }
 
 #[derive(Default, Component)]
@@ -52,37 +62,12 @@ pub struct LevelWalls {
 }
 
 impl LevelWalls {
-    fn in_wall(&self, grid_coords: &GridCoords) -> bool {
+    pub fn in_wall(&self, grid_coords: &GridCoords) -> bool {
         grid_coords.x < 0
             || grid_coords.y < 0
             || grid_coords.x >= self.level_width
             || grid_coords.y >= self.level_height
             || self.wall_locations.contains(grid_coords)
-    }
-}
-
-pub fn move_player_from_input(
-    mut players: Query<&mut GridCoords, With<Player>>,
-    input: Res<Input<KeyCode>>,
-    level_walls: Res<LevelWalls>,
-) {
-    let movement_direction = if input.just_pressed(KeyCode::W) {
-        GridCoords::new(0, 1)
-    } else if input.just_pressed(KeyCode::A) {
-        GridCoords::new(-1, 0)
-    } else if input.just_pressed(KeyCode::S) {
-        GridCoords::new(0, -1)
-    } else if input.just_pressed(KeyCode::D) {
-        GridCoords::new(1, 0)
-    } else {
-        return;
-    };
-
-    for mut player_grid_coords in players.iter_mut() {
-        let destination = *player_grid_coords + movement_direction;
-        if !level_walls.in_wall(&destination) {
-            *player_grid_coords = destination;
-        }
     }
 }
 
@@ -124,24 +109,5 @@ pub fn cache_wall_locations(
 
             *level_walls = new_level_walls;
         }
-    }
-}
-
-pub fn check_goal(
-    level_selection: ResMut<LevelSelection>,
-    players: Query<&GridCoords, (With<Player>, Changed<GridCoords>)>,
-    goals: Query<&GridCoords, With<Goal>>,
-) {
-    if players
-        .iter()
-        .zip(goals.iter())
-        .any(|(player_grid_coords, goal_grid_coords)| player_grid_coords == goal_grid_coords)
-    {
-        let indices = match level_selection.into_inner() {
-            LevelSelection::Indices(indices) => indices,
-            _ => panic!("level selection should always be Indices in this game"),
-        };
-
-        indices.level += 1;
     }
 }
