@@ -33,7 +33,11 @@ impl Default for ButtonColors {
 struct Menu;
 
 fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
-    commands.spawn(Camera2dBundle::default());
+    let mut camera = Camera2dBundle::default();
+    camera.projection.scale = 0.5;
+    camera.transform.translation.x = 1280.0 / 8.0;
+    camera.transform.translation.y = 720.0 / 8.0;
+    commands.spawn(camera);
     commands
         .spawn((
             NodeBundle {
