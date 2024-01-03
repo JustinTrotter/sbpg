@@ -15,21 +15,28 @@ opt-level = 3
 [profile.dev]
 opt-level = 1
 
+# This is used by trunk as it doesn't support custom profiles: https://github.com/trunk-rs/trunk/issues/605
+# xbuild also uses this profile for building android AABs because I couldn't find a configuration for it
 [profile.release]
+opt-level = "s"
 lto = true
 codegen-units = 1
+strip = true
 
-# The profile that 'cargo dist' will build with
+# Profile for distribution
 [profile.dist]
 inherits = "release"
-lto = "thin"
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
 
 [features]
 dev = [
-    "bevy/bevy_dylib",
+    "bevy/dynamic_linking",
 ]
 
-# All of Bevy's default features exept for the audio related ones, since they clash with bevy_kira_audio
+# All of Bevy's default features exept for the audio related ones (bevy_audio, vorbis), since they clash with bevy_kira_audio
 #   and android_shared_stdcxx, since that is covered in `mobile`
 [dependencies]
 bevy = { version = "0.11", default-features = false, features = [
@@ -48,21 +55,19 @@ bevy = { version = "0.11", default-features = false, features = [
     "multi-threaded",
     "png",
     "hdr",
-    "ktx2",
-    "zstd",
     "x11",
     "bevy_gizmos",
     "tonemapping_luts",
     "default_font",
     "webgl2",
 ] }
-bevy_kira_audio = { version = "0.16" }
+bevy_kira_audio = { version = "0.17" }
 bevy_asset_loader = { version = "0.17" }
 rand = { version = "0.8.3" }
 webbrowser = { version = "0.8", features = ["hardened"] }
 
 # keep the following in sync with Bevy's dependencies
-winit = { version = "0.28", default-features = false }
+winit = { version = "0.28.7", default-features = false }
 image = { version = "0.24", default-features = false }
 
 [build-dependencies]
