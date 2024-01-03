@@ -36,7 +36,7 @@ fn setup_menu(mut commands: Commands, textures: Res<TextureAssets>) {
     let mut camera = Camera2dBundle::default();
     camera.projection.scale = 0.5;
     camera.transform.translation.x = 1280.0 / 8.0;
-    camera.transform.translation.y = 720.0 / 8.0;
+    camera.transform.translation.y = 720.0 / 6.0;
     commands.spawn(camera);
     commands
         .spawn((
