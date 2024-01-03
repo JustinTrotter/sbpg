@@ -2,9 +2,6 @@
 // use crate::loading::TextureAssets;
 // use crate::GameState;
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::*;
-
-use crate::{helpers::ldtk::{LdtkMapBundle, LdtkMap}, GameState};
 
 pub struct PlayerPlugin;
 
@@ -14,25 +11,11 @@ pub struct Player;
 /// This plugin handles player related stuff like movement
 /// Player logic is only active during the State `GameState::Playing`
 impl Plugin for PlayerPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Playing), startup);
+    fn build(&self, _app: &mut App) {
         // app.add_systems(OnEnter(GameState::Playing), spawn_player)
             // .add_systems(Update, move_player.run_if(in_state(GameState::Playing)));
     }
 }
-
-fn startup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // let handle: Handle<LdtkMap> = asset_server.load("map/Typical_TopDown_example.ldtk");
-    let handle: Handle<LdtkMap> = asset_server.load("map/map.ldtk");
-
-    commands.spawn(LdtkMapBundle {
-        ldtk_map: handle,
-        transform: Transform::from_xyz(0.0, 0.0, 0.0),
-        ..Default::default()
-    });
-}
-
-
 
 // fn spawn_player(mut commands: Commands, textures: Res<TextureAssets>) {
 //     commands
