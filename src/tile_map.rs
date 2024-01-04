@@ -5,10 +5,7 @@ use bevy_ecs_ldtk::prelude::*;
 use bevy_tweening::{lens::TransformPositionLens, Animator, EaseFunction, Tween, TweenCompleted};
 use std::{collections::HashSet, time::Duration};
 
-use crate::{
-    player::{Player, PlayerBundle},
-    GameState,
-};
+use crate::{player::PlayerBundle, GameState};
 
 pub struct TilemapPlugin;
 
@@ -68,6 +65,7 @@ pub struct Block;
 
 #[derive(Default, Bundle, LdtkEntity)]
 pub struct BlockBundle {
+    block: Block,
     #[sprite_sheet_bundle]
     sprite_bundle: SpriteSheetBundle,
     #[grid_coords]
@@ -98,12 +96,9 @@ const GRID_SIZE: i32 = 16;
 
 pub fn translate_grid_coords_entities(
     mut commands: Commands,
-    mut grid_coords_entities: Query<
-        (Entity, &mut Transform, &GridCoords, &Player),
-        Changed<GridCoords>,
-    >,
+    mut grid_coords_entities: Query<(Entity, &mut Transform, &GridCoords), Changed<GridCoords>>,
 ) {
-    for (entity, transform, grid_coords, _) in grid_coords_entities.iter_mut() {
+    for (entity, transform, grid_coords) in grid_coords_entities.iter_mut() {
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
             Duration::from_millis(100),

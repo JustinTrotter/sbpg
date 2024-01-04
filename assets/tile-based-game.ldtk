@@ -536,6 +536,22 @@
 							"defUid": 68,
 							"px": [112,80],
 							"fieldInstances": []
+						},
+						{
+							"__identifier": "Block",
+							"__grid": [8,4],
+							"__pivot": [0,0],
+							"__tags": [],
+							"__tile": { "tilesetUid": 4, "x": 288, "y": 272, "w": 16, "h": 16 },
+							"__smartColor": "#EAD4AA",
+							"__worldX": 128,
+							"__worldY": 64,
+							"iid": "0b74b7c0-8990-11ee-843d-17098f78001f",
+							"width": 16,
+							"height": 16,
+							"defUid": 68,
+							"px": [128,64],
+							"fieldInstances": []
 						}
 					]
 				},
