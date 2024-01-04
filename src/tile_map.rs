@@ -1,11 +1,14 @@
 // This example has a tutorial in the bevy_ecs_ldtk book associated with it:
 // <https://trouv.github.io/bevy_ecs_ldtk/latest/tutorials/tile-based-game/index.html>
 use bevy::prelude::*;
-use bevy_ecs_ldtk::{prelude::*, utils::grid_coords_to_translation};
-use bevy_tweening::{lens::TransformPositionLens, Animator, EaseFunction, Tween};
+use bevy_ecs_ldtk::prelude::*;
+use bevy_tweening::{lens::TransformPositionLens, Animator, EaseFunction, Tween, TweenCompleted};
 use std::{collections::HashSet, time::Duration};
 
-use crate::{player::PlayerBundle, GameState};
+use crate::{
+    player::{Player, PlayerBundle},
+    GameState,
+};
 
 pub struct TilemapPlugin;
 
@@ -23,6 +26,10 @@ impl Plugin for TilemapPlugin {
             .add_systems(
                 Update,
                 cache_wall_locations.run_if(in_state(GameState::Playing)),
+            )
+            .add_systems(
+                Update,
+                move_complete_listener.run_if(in_state(GameState::Playing)),
             )
             .register_ldtk_int_cell::<WallBundle>(1)
             .init_resource::<LevelWalls>();
@@ -84,13 +91,19 @@ impl LevelWalls {
     }
 }
 
+#[derive(Default, Component)]
+pub struct IsMoving;
+
 const GRID_SIZE: i32 = 16;
 
 pub fn translate_grid_coords_entities(
     mut commands: Commands,
-    mut grid_coords_entities: Query<(Entity, &mut Transform, &GridCoords), Changed<GridCoords>>,
+    mut grid_coords_entities: Query<
+        (Entity, &mut Transform, &GridCoords, &Player),
+        Changed<GridCoords>,
+    >,
 ) {
-    for (entity, transform, grid_coords) in grid_coords_entities.iter_mut() {
+    for (entity, transform, grid_coords, _) in grid_coords_entities.iter_mut() {
         let tween = Tween::new(
             EaseFunction::QuadraticInOut,
             Duration::from_millis(100),
@@ -110,8 +123,20 @@ pub fn translate_grid_coords_entities(
                     0.,
                 ),
             },
-        );
+        )
+        .with_completed_event(0);
         commands.entity(entity).insert(Animator::new(tween));
+    }
+}
+fn move_complete_listener(
+    mut commands: Commands,
+    mut reader: EventReader<TweenCompleted>,
+    query: Query<(Entity, &IsMoving)>,
+) {
+    for _ in reader.iter() {
+        for (entity, _) in query.iter() {
+            commands.entity(entity).remove::<IsMoving>();
+        }
     }
 }
 

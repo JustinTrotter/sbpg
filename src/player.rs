@@ -1,4 +1,5 @@
 use crate::tile_map::Goal;
+use crate::tile_map::IsMoving;
 use crate::tile_map::LevelWalls;
 use crate::GameState;
 use bevy::prelude::*;
@@ -8,7 +9,9 @@ use bevy_ecs_ldtk::{GridCoords, LdtkEntity, LevelSelection};
 pub struct PlayerPlugin;
 
 #[derive(Default, Component)]
-pub struct Player;
+pub struct Player {
+    pub is_moving: bool,
+}
 
 #[derive(Default, Bundle, LdtkEntity)]
 pub struct PlayerBundle {
@@ -32,25 +35,27 @@ impl Plugin for PlayerPlugin {
 }
 
 pub fn move_player_from_input(
-    mut players: Query<&mut GridCoords, With<Player>>,
+    mut commands: Commands,
+    mut players: Query<(Entity, &mut GridCoords, &Player), Without<IsMoving>>,
     input: Res<Input<KeyCode>>,
     level_walls: Res<LevelWalls>,
 ) {
-    let movement_direction = if input.just_pressed(KeyCode::W) {
+    let movement_direction = if input.pressed(KeyCode::W) {
         GridCoords::new(0, 1)
-    } else if input.just_pressed(KeyCode::A) {
+    } else if input.pressed(KeyCode::A) {
         GridCoords::new(-1, 0)
-    } else if input.just_pressed(KeyCode::S) {
+    } else if input.pressed(KeyCode::S) {
         GridCoords::new(0, -1)
-    } else if input.just_pressed(KeyCode::D) {
+    } else if input.pressed(KeyCode::D) {
         GridCoords::new(1, 0)
     } else {
         return;
     };
 
-    for mut player_grid_coords in players.iter_mut() {
+    for (entity, mut player_grid_coords, _) in players.iter_mut() {
         let destination = *player_grid_coords + movement_direction;
         if !level_walls.in_wall(&destination) {
+            commands.entity(entity).insert(IsMoving);
             *player_grid_coords = destination;
         }
     }
