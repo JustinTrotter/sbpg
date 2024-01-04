@@ -674,6 +674,7 @@ dependencies = [
  "bevy_asset_loader",
  "bevy_ecs_ldtk",
  "bevy_kira_audio",
+ "bevy_tweening",
  "embed-resource",
  "image",
  "rand",
@@ -1283,6 +1284,16 @@ dependencies = [
  "bevy_math 0.12.1",
  "bevy_reflect 0.12.1",
  "thiserror",
+]
+
+[[package]]
+name = "bevy_tweening"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b182c9cf812b0052a5a96f59b1be16400fa0717b26da2497e13d81947299c7fc"
+dependencies = [
+ "bevy 0.11.3",
+ "interpolation",
 ]
 
 [[package]]
@@ -2394,6 +2405,12 @@ dependencies = [
  "wasm-bindgen",
  "web-sys",
 ]
+
+[[package]]
+name = "interpolation"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3b7357d2bbc5ee92f8e899ab645233e43d21407573cceb37fed8bc3dede2c02"
 
 [[package]]
 name = "io-kit-sys"

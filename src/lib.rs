@@ -14,6 +14,7 @@ use bevy::app::App;
 use bevy::diagnostic::FrameTimeDiagnosticsPlugin;
 use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
+use bevy_tweening::TweeningPlugin;
 use player::PlayerPlugin;
 use tile_map::TilemapPlugin;
 
@@ -30,7 +31,7 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<GameState>()
-            .add_plugins((LdtkPlugin, LoadingPlugin, MenuPlugin, TilemapPlugin, PlayerPlugin));
+            .add_plugins((LdtkPlugin, LoadingPlugin, MenuPlugin, TilemapPlugin, PlayerPlugin, TweeningPlugin));
 
         #[cfg(debug_assertions)]
         {

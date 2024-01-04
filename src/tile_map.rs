@@ -1,8 +1,9 @@
 // This example has a tutorial in the bevy_ecs_ldtk book associated with it:
 // <https://trouv.github.io/bevy_ecs_ldtk/latest/tutorials/tile-based-game/index.html>
 use bevy::prelude::*;
-use bevy_ecs_ldtk::prelude::*;
-use std::collections::HashSet;
+use bevy_ecs_ldtk::{prelude::*, utils::grid_coords_to_translation};
+use bevy_tweening::{lens::TransformPositionLens, Animator, EaseFunction, Tween};
+use std::{collections::HashSet, time::Duration};
 
 use crate::{player::PlayerBundle, GameState};
 
@@ -14,6 +15,7 @@ impl Plugin for TilemapPlugin {
             .insert_resource(LevelSelection::index(0))
             .register_ldtk_entity::<PlayerBundle>("Player")
             .register_ldtk_entity::<GoalBundle>("Goal")
+            .register_ldtk_entity::<BlockBundle>("Block")
             .add_systems(
                 Update,
                 translate_grid_coords_entities.run_if(in_state(GameState::Playing)),
@@ -54,6 +56,17 @@ pub struct WallBundle {
     wall: Wall,
 }
 
+#[derive(Default, Component)]
+pub struct Block;
+
+#[derive(Default, Bundle, LdtkEntity)]
+pub struct BlockBundle {
+    #[sprite_sheet_bundle]
+    sprite_bundle: SpriteSheetBundle,
+    #[grid_coords]
+    grid_coords: GridCoords,
+}
+
 #[derive(Default, Resource)]
 pub struct LevelWalls {
     wall_locations: HashSet<GridCoords>,
@@ -74,12 +87,31 @@ impl LevelWalls {
 const GRID_SIZE: i32 = 16;
 
 pub fn translate_grid_coords_entities(
-    mut grid_coords_entities: Query<(&mut Transform, &GridCoords), Changed<GridCoords>>,
+    mut commands: Commands,
+    mut grid_coords_entities: Query<(Entity, &mut Transform, &GridCoords), Changed<GridCoords>>,
 ) {
-    for (mut transform, grid_coords) in grid_coords_entities.iter_mut() {
-        transform.translation =
-            bevy_ecs_ldtk::utils::grid_coords_to_translation(*grid_coords, IVec2::splat(GRID_SIZE))
-                .extend(transform.translation.z);
+    for (entity, transform, grid_coords) in grid_coords_entities.iter_mut() {
+        let tween = Tween::new(
+            EaseFunction::QuadraticInOut,
+            Duration::from_millis(100),
+            TransformPositionLens {
+                start: transform.translation,
+                end: Vec3::new(
+                    bevy_ecs_ldtk::utils::grid_coords_to_translation(
+                        *grid_coords,
+                        IVec2::splat(GRID_SIZE),
+                    )
+                    .x,
+                    bevy_ecs_ldtk::utils::grid_coords_to_translation(
+                        *grid_coords,
+                        IVec2::splat(GRID_SIZE),
+                    )
+                    .y,
+                    0.,
+                ),
+            },
+        );
+        commands.entity(entity).insert(Animator::new(tween));
     }
 }
 
