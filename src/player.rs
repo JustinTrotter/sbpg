@@ -3,7 +3,6 @@ use crate::tile_map::Goal;
 use crate::tile_map::IsMoving;
 use crate::tile_map::LevelWalls;
 use crate::GameState;
-use crate::tile_map::Pushable;
 use bevy::prelude::*;
 use bevy_ecs_ldtk::{GridCoords, LdtkEntity, LevelSelection};
 
@@ -23,61 +22,28 @@ pub struct PlayerBundle {
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<PushEvent>();
         app.add_systems(
             Update,
             (
                 move_player_from_input.run_if(in_state(GameState::Playing)),
                 check_goal.run_if(in_state(GameState::Playing)),
-                push_system.run_if(in_state(GameState::Playing))
             ),
         );
     }
 }
 
-#[derive(Event)]
-pub struct PushEvent(Entity, GridCoords);
-
-pub fn push_system(
-    mut commands: Commands,
-    mut ev_push: EventReader<PushEvent>,
-    mut pushable: Query<(Entity, &mut GridCoords), With<Pushable>>,
-    level_walls: Res<LevelWalls>,
-){
-    let mut blocks: Vec<(Entity, GridCoords)> = Vec::new();
-    for (entity, block_grid_coords) in pushable.iter() {
-        blocks.push((entity,*block_grid_coords));
-    }
-    for ev in ev_push.iter() {
-        for (entity, mut grid_coords) in pushable.iter_mut() {
-            let destination = *grid_coords + ev.1;
-            if entity == ev.0 {
-                let mut hit_block = false;
-                for (_, cords) in blocks.iter() {
-                    if *cords == destination {
-                        hit_block = true;
-                    }
-                }
-
-                if !hit_block && !level_walls.in_wall(&destination) {
-                    commands.entity(entity).insert(IsMoving);
-                    *grid_coords = destination;
-                }
-            }
-        }
-    }
-}
-
-
 pub fn move_player_from_input(
     mut commands: Commands,
-    mut set: ParamSet<(
-        Query<(Entity, &mut GridCoords), (With<Player>, Without<IsMoving>)>,
-        Query<(Entity, &mut GridCoords), (With<Block>, Without<IsMoving>)>,
-    )>,
+    mut player_query: Query<
+        (Entity, &mut GridCoords),
+        (With<Player>, Without<IsMoving>, Without<Block>),
+    >,
+    mut block_query: Query<
+        (Entity, &mut GridCoords),
+        (With<Block>, Without<IsMoving>, Without<Player>),
+    >,
     input: Res<Input<KeyCode>>,
     level_walls: Res<LevelWalls>,
-    mut ev_push: EventWriter<PushEvent>
 ) {
     let movement_direction = if input.pressed(KeyCode::W) {
         GridCoords::new(0, 1)
@@ -91,34 +57,46 @@ pub fn move_player_from_input(
         return;
     };
 
-    let mut blocks: Vec<(Entity, GridCoords)> = Vec::new();
-    for (entity, block_grid_coords) in set.p1().iter() {
-        blocks.push((entity,*block_grid_coords));
+    let mut blocks: Vec<GridCoords> = Vec::new();
+    for (_, block_grid_coords) in block_query.iter() {
+        blocks.push(*block_grid_coords);
     }
 
-    for (entity, mut player_grid_coords) in set.p0().iter_mut() {
-        let destination = *player_grid_coords + movement_direction;
-        let block_destination = *player_grid_coords + movement_direction + movement_direction;
+    for (entity, mut player_grid_coords) in player_query.iter_mut() {
+        let player_destination = *player_grid_coords + movement_direction;
+        let block_push_destination = *player_grid_coords + movement_direction + movement_direction;
+        let block_pull_origin = *player_grid_coords - movement_direction;
+        let block_pull_destination = *player_grid_coords;
         let mut hit_block = false;
         let mut hit_second_block = false;
-        for (entity, cords) in blocks.iter() {
-            if *cords == destination {
+        for (entity, mut cords) in block_query.iter_mut() {
+            // PUSH LOGIC
+            if *cords == player_destination {
                 hit_block = true;
-                ev_push.send(PushEvent(*entity, movement_direction));
+                for block_coords in blocks.iter() {
+                    if block_push_destination == *block_coords {
 
+                        hit_second_block = true;
+                    }
+                }
+                if !hit_second_block && !level_walls.in_wall(&block_push_destination){
+                    commands.entity(entity).insert(IsMoving);
+                    *cords = block_push_destination;
+                }
             }
-            if *cords == block_destination {
-                hit_second_block = true;
+            // PULL LOGIC
+            if *cords == block_pull_origin && !level_walls.in_wall(&player_destination) && input.pressed(KeyCode::Space)
+            {
+                if !hit_block && !level_walls.in_wall(&player_destination) {
+                    commands.entity(entity).insert(IsMoving);
+                    *cords = block_pull_destination;
+                }
             }
         }
-        if hit_block {
-            if !level_walls.in_wall(&block_destination) && !hit_second_block {
-                commands.entity(entity).insert(IsMoving);
-                *player_grid_coords = destination;
-            }
-        } else if !hit_block && !level_walls.in_wall(&destination) {
+        // MOVE LOGIC
+        if (!hit_block || (hit_block && !hit_second_block && !level_walls.in_wall(&block_push_destination))) && !level_walls.in_wall(&player_destination) {
             commands.entity(entity).insert(IsMoving);
-            *player_grid_coords = destination;
+            *player_grid_coords = player_destination;
         }
     }
 }

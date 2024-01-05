@@ -64,12 +64,16 @@ pub struct WallBundle {
 pub struct Pushable;
 
 #[derive(Default, Component)]
+pub struct Pullable;
+
+#[derive(Default, Component)]
 pub struct Block;
 
 #[derive(Default, Bundle, LdtkEntity)]
 pub struct BlockBundle {
     block: Block,
     pushable: Pushable,
+    pullable: Pullable,
     #[sprite_sheet_bundle]
     sprite_bundle: SpriteSheetBundle,
     #[grid_coords]
