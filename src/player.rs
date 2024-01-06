@@ -8,8 +8,20 @@ use bevy_ecs_ldtk::{GridCoords, LdtkEntity, LevelSelection};
 
 pub struct PlayerPlugin;
 
+#[derive(Default)]
+pub enum Direction {
+    North,
+    #[default]
+    East,
+    South,
+    West
+}
+
 #[derive(Default, Component)]
-pub struct Player;
+pub struct Player {
+    face_direction: Direction
+
+}
 
 #[derive(Default, Bundle, LdtkEntity)]
 pub struct PlayerBundle {
@@ -26,30 +38,44 @@ impl Plugin for PlayerPlugin {
             Update,
             (
                 move_player_from_input.run_if(in_state(GameState::Playing)),
+                turn_player_from_input.run_if(in_state(GameState::Playing)),
                 check_goal.run_if(in_state(GameState::Playing)),
-                update_player_facing.run_if(in_state(GameState::Playing)),
+                update_player_facing_direction.run_if(in_state(GameState::Playing)),
             ),
         );
     }
 }
 
-pub fn update_player_facing(
-    mut player_query: Query<(Entity, &mut Player, &mut TextureAtlasSprite), Without<IsMoving>>,
+pub fn turn_player_from_input(
+    mut player_query: Query<&mut Player, Without<IsMoving>>,
     input: Res<Input<KeyCode>>,
 ) {
-    for (entity, mut player, mut sprite) in player_query.iter_mut() {
+    for mut player in player_query.iter_mut() {
         if input.pressed(KeyCode::W) {
-            sprite.index = 2;
+            player.face_direction = Direction::North;
         } else if input.pressed(KeyCode::A) {
-            sprite.index = 1;
-            sprite.flip_x = false;
+            player.face_direction =  Direction::West;
         } else if input.pressed(KeyCode::S) {
-            sprite.index = 0;
+            player.face_direction = Direction::South;
         } else if input.pressed(KeyCode::D) {
-            sprite.index = 1;
-            sprite.flip_x = true;
+            player.face_direction = Direction::East;
         }
     }
+}
+
+pub fn update_player_facing_direction(
+    mut player_query: Query<(&mut Player, &mut TextureAtlasSprite), Changed<Player>>,
+    ){
+    for (player, mut sprite) in player_query.iter_mut() {
+        match player.face_direction {
+            Direction::North => sprite.index = 2,
+            Direction::East => { sprite.index = 1; sprite.flip_x = true;},
+            Direction::South => sprite.index = 0,
+            Direction::West => { sprite.index = 1; sprite.flip_x = false;}
+        }
+
+    }
+
 }
 
 pub fn move_player_from_input(
