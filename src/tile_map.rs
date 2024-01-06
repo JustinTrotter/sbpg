@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy_ecs_ldtk::prelude::*;
 use bevy_tweening::{lens::TransformPositionLens, Animator, EaseFunction, Tween, TweenCompleted};
 use std::{collections::HashSet, time::Duration};
+use bevy_kira_audio::prelude::*;
 
 use crate::{player::PlayerBundle, GameState};
 
@@ -11,7 +12,9 @@ pub struct TilemapPlugin;
 
 impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Playing), setup)
+        app
+            .add_systems(OnEnter(GameState::Playing), setup)
+            .add_systems(OnEnter(GameState::Playing), start_background_audio)
             .insert_resource(LevelSelection::index(0))
             .register_ldtk_entity::<PlayerBundle>("Player")
             .register_ldtk_entity::<GoalBundle>("Goal")
@@ -38,6 +41,10 @@ pub fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ldtk_handle: asset_server.load("tile-based-game.ldtk"),
         ..Default::default()
     });
+}
+
+fn start_background_audio(asset_server: Res<AssetServer>, audio: Res<Audio>) {
+    audio.play(asset_server.load("Bemuse.ogg")).looped();
 }
 
 #[derive(Default, Component)]
