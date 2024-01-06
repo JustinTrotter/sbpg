@@ -27,8 +27,28 @@ impl Plugin for PlayerPlugin {
             (
                 move_player_from_input.run_if(in_state(GameState::Playing)),
                 check_goal.run_if(in_state(GameState::Playing)),
+                update_player_facing.run_if(in_state(GameState::Playing)),
             ),
         );
+    }
+}
+
+pub fn update_player_facing(
+    mut player_query: Query<(Entity, &mut Player, &mut TextureAtlasSprite), Without<IsMoving>>,
+    input: Res<Input<KeyCode>>,
+) {
+    for (entity, mut player, mut sprite) in player_query.iter_mut() {
+        if input.pressed(KeyCode::W) {
+            sprite.index = 2;
+        } else if input.pressed(KeyCode::A) {
+            sprite.index = 1;
+            sprite.flip_x = false;
+        } else if input.pressed(KeyCode::S) {
+            sprite.index = 0;
+        } else if input.pressed(KeyCode::D) {
+            sprite.index = 1;
+            sprite.flip_x = true;
+        }
     }
 }
 
@@ -75,17 +95,18 @@ pub fn move_player_from_input(
                 hit_block = true;
                 for block_coords in blocks.iter() {
                     if block_push_destination == *block_coords {
-
                         hit_second_block = true;
                     }
                 }
-                if !hit_second_block && !level_walls.in_wall(&block_push_destination){
+                if !hit_second_block && !level_walls.in_wall(&block_push_destination) {
                     commands.entity(entity).insert(IsMoving);
                     *cords = block_push_destination;
                 }
             }
             // PULL LOGIC
-            if *cords == block_pull_origin && !level_walls.in_wall(&player_destination) && input.pressed(KeyCode::Space)
+            if *cords == block_pull_origin
+                && !level_walls.in_wall(&player_destination)
+                && input.pressed(KeyCode::Space)
             {
                 if !hit_block && !level_walls.in_wall(&player_destination) {
                     commands.entity(entity).insert(IsMoving);
@@ -94,7 +115,10 @@ pub fn move_player_from_input(
             }
         }
         // MOVE LOGIC
-        if (!hit_block || (hit_block && !hit_second_block && !level_walls.in_wall(&block_push_destination))) && !level_walls.in_wall(&player_destination) {
+        if (!hit_block
+            || (hit_block && !hit_second_block && !level_walls.in_wall(&block_push_destination)))
+            && !level_walls.in_wall(&player_destination)
+        {
             commands.entity(entity).insert(IsMoving);
             *player_grid_coords = player_destination;
         }
