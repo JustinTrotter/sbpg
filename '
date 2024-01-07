@@ -2,14 +2,14 @@ use crate::tile_map::Block;
 use crate::tile_map::Goal;
 use crate::tile_map::IsMoving;
 use crate::tile_map::LevelWalls;
-use crate::tile_map::Pushable;
 use crate::GameState;
+use crate::tile_map::Pushable;
 use bevy::prelude::*;
 use bevy_ecs_ldtk::{GridCoords, LdtkEntity, LevelSelection};
 
 pub struct PlayerPlugin;
 
-#[derive(Default, PartialEq, Debug)]
+#[derive(Default)]
 pub enum Direction {
     North,
     #[default]
@@ -42,10 +42,6 @@ impl Plugin for PlayerPlugin {
                 turn_player_from_input.run_if(in_state(GameState::Playing)),
                 check_goal.run_if(in_state(GameState::Playing)),
                 update_player_facing_direction.run_if(in_state(GameState::Playing)),
-                grab_from_held_input.run_if(in_state(GameState::Playing)),
-                ungrab_from_release_input.run_if(in_state(GameState::Playing)),
-                highlight_grabbed.run_if(in_state(GameState::Playing)),
-                unhighlight_grabbed.run_if(in_state(GameState::Playing)),
             ),
         );
     }
@@ -69,51 +65,22 @@ pub fn turn_player_from_input(
 }
 
 fn get_neighbor_direction(origin: GridCoords, neighbor: GridCoords) -> Direction {
-    if origin + GridCoords::new(0, 1) == neighbor {
-        return Direction::North;
-    } else if origin + GridCoords::new(1, 0) == neighbor {
-        return Direction::East;
-    } else if origin + GridCoords::new(0, -1) == neighbor {
-        return Direction::South;
-    } else if origin + GridCoords::new(-1, 0) == neighbor {
-        return Direction::West;
+    let north = origin + GridCoords::new(0, 1);
+
+    match neighbor {
+        north => return Direction::East;
     }
-    return Direction::None;
+
 }
 
-#[derive(Default, Component)]
-pub struct Grabbed;
-
-pub fn grab_from_held_input(
-    mut commands: Commands,
+pub fn grab_from_input(
     player_query: Query<(&Player, &GridCoords), Without<IsMoving>>,
-    pushable_query: Query<(Entity, &GridCoords), (Without<IsMoving>, With<Pushable>)>,
+    mut pushable_query: Query<(&mut Pushable, &GridCoords), Without<IsMoving>>,
     input: Res<Input<KeyCode>>,
 ) {
-    if input.just_pressed(KeyCode::Space) {
-        for (entity, pushable_grid_coords) in pushable_query.iter() {
-            for (player, player_grid_coords) in player_query.iter() {
-                let neighbor_direction =
-                    get_neighbor_direction(*player_grid_coords, *pushable_grid_coords);
-                if get_neighbor_direction(*player_grid_coords, *pushable_grid_coords)
-                    == player.face_direction
-                {
-                    commands.entity(entity).insert(Grabbed);
-                }
-            }
-        }
-    }
-}
+    for (mut pushable, player_grid_coords) in pushable_query.iter_mut() {
 
-pub fn ungrab_from_release_input(
-    mut commands: Commands,
-    pushable_query: Query<Entity, With<Pushable>>,
-    input: Res<Input<KeyCode>>,
-) {
-    if input.just_released(KeyCode::Space) {
-        for entity in pushable_query.iter() {
-            commands.entity(entity).remove::<Grabbed>();
-        }
+
     }
 }
 
@@ -132,26 +99,11 @@ pub fn update_player_facing_direction(
                 sprite.index = 1;
                 sprite.flip_x = false;
             }
-            _ => {
-                // default to facing right
+            _ => { // default to facing right
                 sprite.index = 1;
                 sprite.flip_x = true;
             }
         }
-    }
-}
-
-pub fn highlight_grabbed(mut grabbed_query: Query<&mut TextureAtlasSprite, With<Grabbed>>
-) {
-    for mut sprite in grabbed_query.iter_mut() {
-        sprite.color = Color::rgb(0.0, 1.0, 0.0);
-    }
-}
-
-pub fn unhighlight_grabbed(mut grabbed_query: Query<&mut TextureAtlasSprite, Without<Grabbed>>
-) {
-    for mut sprite in grabbed_query.iter_mut() {
-        sprite.color = Color::rgb(1.0, 1.0, 1.0);
     }
 }
 

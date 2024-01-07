@@ -6,7 +6,8 @@ use bevy::window::PrimaryWindow;
 use bevy::winit::WinitWindows;
 use bevy::DefaultPlugins;
 use bevy_game::GamePlugin;
-use bevy_kira_audio::Audio; // ToDo: Replace bevy_game with your new crate name.
+use bevy_kira_audio::Audio;
+use bevy_mod_outline::OutlinePlugin; // ToDo: Replace bevy_game with your new crate name.
 use std::io::Cursor;
 use winit::window::Icon;
 
@@ -32,6 +33,7 @@ fn main() {
                     ..default()
                 }),
         )
+        .add_plugins(OutlinePlugin)
         .add_plugins(GamePlugin)
         .add_systems(Startup, set_window_icon)
         .run();

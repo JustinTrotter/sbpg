@@ -31,8 +31,15 @@ pub struct GamePlugin;
 
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
-        app.add_state::<GameState>()
-            .add_plugins((LdtkPlugin, LoadingPlugin, MenuPlugin, TilemapPlugin, PlayerPlugin, TweeningPlugin, AudioPlugin));
+        app.add_state::<GameState>().add_plugins((
+            LdtkPlugin,
+            LoadingPlugin,
+            MenuPlugin,
+            TilemapPlugin,
+            PlayerPlugin,
+            TweeningPlugin,
+            AudioPlugin,
+        ));
 
         #[cfg(debug_assertions)]
         {
