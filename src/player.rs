@@ -1,5 +1,3 @@
-use std::ops::Add;
-
 use crate::tile_map::Block;
 use crate::tile_map::Goal;
 use crate::tile_map::IsMoving;
@@ -11,7 +9,7 @@ use bevy_ecs_ldtk::{GridCoords, LdtkEntity, LevelSelection};
 
 pub struct PlayerPlugin;
 
-#[derive(Default, PartialEq, Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone)]
 pub enum Direction {
     North,
     #[default]
@@ -19,6 +17,19 @@ pub enum Direction {
     South,
     West,
     None,
+}
+
+impl PartialEq for Direction {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Direction::North, Direction::North) => true,
+            (Direction::East, Direction::East) => true,
+            (Direction::South, Direction::South) => true,
+            (Direction::West, Direction::West) => true,
+            (Direction::None, Direction::None) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Default, Component)]
@@ -69,6 +80,7 @@ pub struct PlayerBundle {
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
+        app.init_resource::<GlobalPlayerState>();
         app.add_event::<PushMoveEvent>();
         app.add_event::<PlayerMoveEvent>();
         app.add_event::<PullMoveEvent>();
@@ -88,11 +100,11 @@ impl Plugin for PlayerPlugin {
                     // .before(translate_grid_coords_entities)
                     .run_if(in_state(GameState::Playing)),
                 handle_move_player_event
-                .run_if(in_state(GameState::Playing))
-                .after(handle_move_player),
+                    .run_if(in_state(GameState::Playing))
+                    .after(handle_move_player),
                 update_moveable_neighbors
-                .after(handle_move_player_event)
-                .run_if(in_state(GameState::Playing)),
+                    .after(handle_move_player_event)
+                    .run_if(in_state(GameState::Playing)),
             ),
         );
     }
@@ -106,42 +118,26 @@ pub struct PullMoveEvent(Entity, Direction);
 #[derive(Event)]
 pub struct PlayerMoveEvent(Entity, Direction);
 
-pub fn handle_push_move(
-    mut commands: Commands,
-    mut ev_push_move: EventReader<PushMoveEvent>,
-    mut pushable_query: Query<(Entity, &mut GridCoords), (Without<IsMoving>, With<Grabbed>)>,
-    level_walls: Res<LevelWalls>,
-) {
-    for ev in ev_push_move.iter() {
-        for (entity, mut pushable_grid_coords) in pushable_query.iter_mut() {
-            if entity == ev.0 {
-                let block_push_destination = *pushable_grid_coords
-                    + match ev.1 {
-                        Direction::North => GridCoords::new(0, 1),
-                        Direction::East => GridCoords::new(1, 0),
-                        Direction::South => GridCoords::new(0, -1),
-                        Direction::West => GridCoords::new(-1, 0),
-                        _ => GridCoords::new(0, 0),
-                    };
-                if !level_walls.in_wall(&block_push_destination) {
-                    commands.entity(entity).insert(IsMoving);
-                    *pushable_grid_coords = block_push_destination;
-                }
-            }
-        }
-    }
-}
-
 pub fn handle_move_player(
     mut commands: Commands,
     moving_player_query: Query<Entity, (With<Player>, With<IsMoving>)>,
-    mut player_query: Query<(Entity, &Movable), (With<Player>, Without<IsMoving>)>,
+    mut player_query: Query<
+        (
+            Entity,
+            &Movable,
+            Option<&Block>,
+            Option<&Grabbed>,
+            Option<&Grabbing>,
+        ),
+        Without<IsMoving>,
+    >,
     grid_coords_query: Query<&GridCoords, With<Movable>>,
     movible_query: Query<&Movable>,
-    block_query: Query<&Block>,
+    block_query: Query<&Block, Without<Grabbed>>,
     level_walls: Res<LevelWalls>,
     input: Res<Input<KeyCode>>,
     mut ev_player_move: EventWriter<PlayerMoveEvent>,
+    global_player_state: Res<GlobalPlayerState>,
 ) {
     // if any player is moving, don't move any players
     // this is very important because otherwise the will move
@@ -153,7 +149,19 @@ pub fn handle_move_player(
     if movement_direction == Direction::None {
         return;
     }
-    for (entity, movable) in player_query.iter_mut() {
+    for (entity, movable, block, grabbed, grabbing) in player_query.iter_mut() {
+        if grabbed.is_none() && block.is_some() {
+            continue;
+        }
+
+        // if grabbing, only move if facing direction is the same as movement direction
+        if (grabbing.is_some() || grabbed.is_some() || global_player_state.grabbing)
+            && (global_player_state.direction != movement_direction
+                && global_player_state.direction != get_reversed_direction(movement_direction))
+        {
+            continue;
+        }
+
         let player_grid_coords = grid_coords_query.get(entity).unwrap();
         let player_destination = *player_grid_coords
             + match movement_direction {
@@ -163,7 +171,14 @@ pub fn handle_move_player(
                 Direction::West => GridCoords::new(-1, 0),
                 _ => GridCoords::new(0, 0),
             };
-        let can_move = can_move(&grid_coords_query, movement_direction, movable, &movible_query, &level_walls, &block_query);
+        let can_move = can_move(
+            &grid_coords_query,
+            movement_direction,
+            movable,
+            &movible_query,
+            &level_walls,
+            &block_query,
+        );
         if can_move && !level_walls.in_wall(&player_destination) {
             commands.entity(entity).insert(IsMoving);
             ev_player_move.send(PlayerMoveEvent(entity, movement_direction));
@@ -195,7 +210,7 @@ fn can_move(
     movable: &Movable,
     movable_query: &Query<&Movable>,
     level_walls: &Res<LevelWalls>,
-    block_query: &Query<&Block>,
+    block_query: &Query<&Block, Without<Grabbed>>,
 ) -> bool {
     let neighbor_entity = match direction {
         Direction::North => movable.north_neighbor,
@@ -226,14 +241,32 @@ fn can_move(
         return false;
     }
 
-    return can_move(grid_coords_query, direction, neighbor_movable, movable_query, level_walls, block_query);
+    return can_move(
+        grid_coords_query,
+        direction,
+        neighbor_movable,
+        movable_query,
+        level_walls,
+        block_query,
+    );
 }
 
 pub fn turn_player_from_input(
-    mut player_query: Query<&mut Player, Without<IsMoving>>,
+    mut player_query: Query<(&mut Player, Option<&Grabbing>), Without<IsMoving>>,
+    moving_player_query: Query<Entity, With<IsMoving>>,
     input: Res<Input<KeyCode>>,
+    global_player_state: Res<GlobalPlayerState>,
 ) {
-    for mut player in player_query.iter_mut() {
+    // if any player is moving, don't change facing of any players
+    // this is very important because otherwise the will move
+    // out of sync and have a chance of merging into one space
+    if moving_player_query.iter().count() > 0 {
+        return;
+    }
+    for (mut player, grabbing) in player_query.iter_mut() {
+        if grabbing.is_some() || global_player_state.grabbing {
+            continue;
+        }
         if input.pressed(KeyCode::W) {
             player.face_direction = Direction::North;
         } else if input.pressed(KeyCode::A) {
@@ -262,19 +295,41 @@ fn get_neighbor_direction(origin: &GridCoords, neighbor: &GridCoords) -> Directi
 #[derive(Default, Component)]
 pub struct Grabbed;
 
+#[derive(Default, Component)]
+pub struct Grabbing;
+
+#[derive(Resource)]
+pub struct GlobalPlayerState {
+    pub direction: Direction,
+    pub grabbing: bool,
+}
+
+impl Default for GlobalPlayerState {
+    fn default() -> Self {
+        GlobalPlayerState {
+            direction: Direction::East,
+            grabbing: false,
+        }
+    }
+}
+
 pub fn grab_from_held_input(
     mut commands: Commands,
-    player_query: Query<(&Player, &GridCoords), Without<IsMoving>>,
+    player_query: Query<(Entity, &Player, &GridCoords), Without<IsMoving>>,
     pushable_query: Query<(Entity, &GridCoords), (Without<IsMoving>, With<Pushable>)>,
     input: Res<Input<KeyCode>>,
+    mut global_player_state: ResMut<GlobalPlayerState>,
 ) {
     if input.just_pressed(KeyCode::Space) {
         for (entity, pushable_grid_coords) in pushable_query.iter() {
-            for (player, player_grid_coords) in player_query.iter() {
+            for (player_entity, player, player_grid_coords) in player_query.iter() {
                 if get_neighbor_direction(player_grid_coords, pushable_grid_coords)
                     == player.face_direction
                 {
                     commands.entity(entity).insert(Grabbed);
+                    commands.entity(player_entity).insert(Grabbing);
+                    global_player_state.direction = player.face_direction;
+                    global_player_state.grabbing = true;
                 }
             }
         }
@@ -283,12 +338,15 @@ pub fn grab_from_held_input(
 
 pub fn ungrab_from_release_input(
     mut commands: Commands,
-    pushable_query: Query<Entity, With<Pushable>>,
+    movable_query: Query<Entity, With<Movable>>,
     input: Res<Input<KeyCode>>,
+    mut global_player_state: ResMut<GlobalPlayerState>,
 ) {
     if input.just_released(KeyCode::Space) {
-        for entity in pushable_query.iter() {
+        for entity in movable_query.iter() {
             commands.entity(entity).remove::<Grabbed>();
+            commands.entity(entity).remove::<Grabbing>();
+            global_player_state.grabbing = false;
         }
     }
 }
@@ -369,41 +427,18 @@ fn get_movement_direction_from_input(input: &Res<Input<KeyCode>>) -> Direction {
     return Direction::None;
 }
 
-// pub fn move_pushable_from_input(
-//     mut commands: Commands,
-//     mut pushable_query: Query<(Entity, &mut GridCoords), (Without<IsMoving>, With<Grabbed>)>,
-//     player_query: Query<&Player, Without<IsMoving>>,
-//     input: Res<Input<KeyCode>>,
-//     level_walls: Res<LevelWalls>,
-// ) {
-//     let mut blocks: Vec<GridCoords> = Vec::new();
-//     for (_, block_grid_coords) in pushable_query.iter() {
-//         blocks.push(*block_grid_coords);
-//     }
-//     let movement_direction = get_movement_direction_from_input(&input);
-//     for (entity, mut pushable_grid_coords) in pushable_query.iter_mut() {
-//         for player in player_query.iter() {
-//             let block_push_destination = *pushable_grid_coords
-//                 + get_movement_coords_from_direction(player.face_direction).unwrap();
-//             let mut hit_second_block = false;
-//             if movement_direction == player.face_direction {
-//                 for block_coords in blocks.iter() {
-//                     if block_push_destination
-//                         + get_movement_coords_from_direction(player.face_direction).unwrap()
-//                         == *block_coords
-//                     {
-//                         // hit_second_block = true;
-//                     }
-//                 }
-//                 if !hit_second_block && !level_walls.in_wall(&block_push_destination) {
-//                     commands.entity(entity).insert(IsMoving);
-//                     *pushable_grid_coords = block_push_destination;
-//                 }
-//             }
-//         }
-//     }
-// }
-
+fn get_reversed_direction(direction: Direction) -> Direction {
+    if direction == Direction::North {
+        return Direction::South;
+    } else if direction == Direction::West {
+        return Direction::East;
+    } else if direction == Direction::South {
+        return Direction::North;
+    } else if direction == Direction::East {
+        return Direction::West;
+    }
+    return Direction::None;
+}
 
 pub fn check_goal(
     level_selection: ResMut<LevelSelection>,
