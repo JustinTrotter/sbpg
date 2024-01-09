@@ -574,6 +574,38 @@
 							"defUid": 68,
 							"px": [128,64],
 							"fieldInstances": []
+						},
+						{
+							"__identifier": "Player",
+							"__grid": [10,4],
+							"__pivot": [0,0],
+							"__tags": [],
+							"__tile": { "tilesetUid": 74, "x": 0, "y": 0, "w": 16, "h": 16 },
+							"__smartColor": "#BE4A2F",
+							"__worldX": 160,
+							"__worldY": 64,
+							"iid": "de4247e0-8990-11ee-a03e-2595becde939",
+							"width": 16,
+							"height": 16,
+							"defUid": 62,
+							"px": [160,64],
+							"fieldInstances": []
+						},
+						{
+							"__identifier": "Player",
+							"__grid": [8,6],
+							"__pivot": [0,0],
+							"__tags": [],
+							"__tile": { "tilesetUid": 74, "x": 0, "y": 0, "w": 16, "h": 16 },
+							"__smartColor": "#BE4A2F",
+							"__worldX": 128,
+							"__worldY": 96,
+							"iid": "2801a580-8990-11ee-a03e-c34615b57427",
+							"width": 16,
+							"height": 16,
+							"defUid": 62,
+							"px": [128,96],
+							"fieldInstances": []
 						}
 					]
 				},

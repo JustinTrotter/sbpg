@@ -6,7 +6,7 @@ use bevy_tweening::{lens::TransformPositionLens, Animator, EaseFunction, Tween, 
 use std::{collections::HashSet, time::Duration};
 use bevy_kira_audio::prelude::*;
 
-use crate::{player::PlayerBundle, GameState};
+use crate::{player::{PlayerBundle, handle_move_player, Movable, handle_move_player_event, update_moveable_neighbors}, GameState};
 
 pub struct TilemapPlugin;
 
@@ -21,7 +21,9 @@ impl Plugin for TilemapPlugin {
             .register_ldtk_entity::<BlockBundle>("Block")
             .add_systems(
                 Update,
-                translate_grid_coords_entities.run_if(in_state(GameState::Playing)),
+                translate_grid_coords_entities
+                .after(handle_move_player_event)
+                .run_if(in_state(GameState::Playing)),
             )
             .add_systems(
                 Update,
@@ -29,7 +31,9 @@ impl Plugin for TilemapPlugin {
             )
             .add_systems(
                 Update,
-                move_complete_listener.run_if(in_state(GameState::Playing)),
+                move_complete_listener
+                .after(translate_grid_coords_entities)
+                .run_if(in_state(GameState::Playing)),
             )
             .register_ldtk_int_cell::<WallBundle>(1)
             .init_resource::<LevelWalls>();
@@ -79,6 +83,7 @@ pub struct Block;
 #[derive(Default, Bundle, LdtkEntity)]
 pub struct BlockBundle {
     block: Block,
+    movable: Movable,
     pushable: Pushable,
     pullable: Pullable,
     #[sprite_sheet_bundle]
@@ -137,14 +142,31 @@ pub fn translate_grid_coords_entities(
         .with_completed_event(0);
         commands.entity(entity).insert(Animator::new(tween));
     }
+    // teleporting instead of tweening
+    // for (entity, mut transform, grid_coords) in grid_coords_entities.iter_mut() {
+    //     transform.translation = Vec3::new(
+    //         bevy_ecs_ldtk::utils::grid_coords_to_translation(
+    //             *grid_coords,
+    //             IVec2::splat(GRID_SIZE),
+    //         )
+    //         .x,
+    //         bevy_ecs_ldtk::utils::grid_coords_to_translation(
+    //             *grid_coords,
+    //             IVec2::splat(GRID_SIZE),
+    //         )
+    //         .y,
+    //         0.,
+    //     );
+    //     commands.entity(entity).remove::<IsMoving>();
+    // }
 }
 fn move_complete_listener(
     mut commands: Commands,
     mut reader: EventReader<TweenCompleted>,
-    query: Query<(Entity, &IsMoving)>,
+    query: Query<Entity, With<IsMoving>>,
 ) {
     for _ in reader.iter() {
-        for (entity, _) in query.iter() {
+        for entity in query.iter() {
             commands.entity(entity).remove::<IsMoving>();
         }
     }
