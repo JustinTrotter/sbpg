@@ -75,16 +75,12 @@ impl Plugin for PlayerPlugin {
         app.add_systems(
             Update,
             (
-                // turn_player_from_input.run_if(in_state(GameState::Playing)),
-                // move_player_from_input
-                //     .before(translate_grid_coords_entities)
-                //     .before(handle_move_player)
-                //     .run_if(in_state(GameState::Playing)),
-                // grab_from_held_input.run_if(in_state(GameState::Playing)),
-                // ungrab_from_release_input.run_if(in_state(GameState::Playing)),
-                // highlight_grabbed.run_if(in_state(GameState::Playing)),
-                // unhighlight_grabbed.run_if(in_state(GameState::Playing)),
-                // update_player_facing_direction.run_if(in_state(GameState::Playing)),
+                turn_player_from_input.run_if(in_state(GameState::Playing)),
+                grab_from_held_input.run_if(in_state(GameState::Playing)),
+                ungrab_from_release_input.run_if(in_state(GameState::Playing)),
+                highlight_grabbed.run_if(in_state(GameState::Playing)),
+                unhighlight_grabbed.run_if(in_state(GameState::Playing)),
+                update_player_facing_direction.run_if(in_state(GameState::Playing)),
                 // check_goal.run_if(in_state(GameState::Playing)),
                 // move_pushable_from_input.run_if(in_state(GameState::Playing)),
                 //
@@ -408,12 +404,6 @@ fn get_movement_direction_from_input(input: &Res<Input<KeyCode>>) -> Direction {
 //     }
 // }
 
-pub fn move_player_from_input(
-    mut player_query: Query<Entity, With<Player>>,
-    input: Res<Input<KeyCode>>,
-    mut ev_player_move: EventWriter<PlayerMoveEvent>,
-) {
-}
 
 pub fn check_goal(
     level_selection: ResMut<LevelSelection>,
