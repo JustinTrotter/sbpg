@@ -14,8 +14,15 @@ impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_systems(OnEnter(GameState::Playing), setup)
-            .add_systems(OnEnter(GameState::Playing), start_background_audio)
+            // .add_systems(OnEnter(GameState::Playing), start_background_audio)
             .insert_resource(LevelSelection::index(0))
+            .insert_resource(LdtkSettings {
+                level_spawn_behavior: LevelSpawnBehavior::UseWorldTranslation {
+                    load_level_neighbors: false,
+                },
+                set_clear_color: SetClearColor::FromLevelBackground,
+                ..Default::default()
+            })
             .register_ldtk_entity::<PlayerBundle>("Player")
             .register_ldtk_entity::<GoalBundle>("Goal")
             .register_ldtk_entity::<BlockBundle>("Block")
